@@ -65,6 +65,21 @@ function M.createTurtle()
     function mock.inspectUp() return false, "No block to inspect" end
     function mock.inspectDown() return false, "No block to inspect" end
 
+    -- Dropping items
+    function mock.drop(count)
+        if mock.getItemCount(selectedSlot) == 0 then return false end
+        local currentCount = inventory[selectedSlot].count
+        local dropCount = count or currentCount  -- If no count, drop all
+        if dropCount >= currentCount then
+            inventory[selectedSlot] = nil
+        else
+            inventory[selectedSlot].count = currentCount - dropCount
+        end
+        return true
+    end
+    function mock.dropUp(count) return mock.drop(count) end
+    function mock.dropDown(count) return mock.drop(count) end
+
     -- Custom Helpers for Tests
     function mock._setInventory(slot, name, count, damage)
         inventory[slot] = {name=name, count=count, damage=damage or 0}

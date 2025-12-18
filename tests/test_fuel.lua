@@ -1,5 +1,6 @@
 local framework = require("tests.framework")
 local fuel = require("modules.fuel")
+local inventory = require("modules.inventory")
 local mocks = require("tests.mocks")
 
 local describe = framework.describe
@@ -35,6 +36,9 @@ describe("Fuel Module", function()
     it("checkFuel attempts refuel if low", function()
         turtle._setFuelLevel(0)
         turtle._setInventory(1, "minecraft:coal", 1)
+
+        -- Set up inventory with fuel sources so useFuelItem works
+        inventory.setup({["minecraft:coal"]=true})
 
         -- Should consume coal
         local result = fuel.checkFuel(1, 1, 0, 1, false)
