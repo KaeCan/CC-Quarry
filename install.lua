@@ -26,7 +26,11 @@ end
 
 local function downloadFile(url, filepath)
   print("Downloading " .. filepath .. "...")
-  local response = http.get(url)
+  local cacheBuster = (os.time() or 0) .. "_" .. (math.random(1000, 9999) or 1234)
+  local separator = url:find("?") and "&" or "?"
+  local cacheUrl = url .. separator .. "cb=" .. tostring(cacheBuster)
+
+  local response = http.get(cacheUrl)
   if not response then
     return false, "Failed to download: " .. url
   end
