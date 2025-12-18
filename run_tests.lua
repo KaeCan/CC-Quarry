@@ -9,8 +9,10 @@ if not turtle then
     turtle = mocks.createTurtle()
 end
 
-print("Running Quarry Test Suite")
-print("=======================")
+framework.enableLogging()
+
+framework.logPrint("Running Quarry Test Suite")
+framework.logPrint("=======================")
 
 require("tests.test_utils")
 require("tests.test_item_filter")
@@ -19,3 +21,11 @@ require("tests.test_inventory")
 require("tests.test_tracker")
 
 framework.printStats()
+
+if framework.saveLog("test.log") then
+    framework.logPrint("Test log saved to test.log")
+end
+
+if framework.saveResults() then
+    framework.logPrint("Test results saved to test_results.log")
+end

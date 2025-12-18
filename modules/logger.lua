@@ -31,7 +31,7 @@ function M.log(text)
   if not config.enableLogging then
     return
   end
-  local f = fs.open("log.txt","a")
+  local f = fs.open("quarry.log","a")
   if f then
     f.write(tostring(os.date()).."\n")
     f.write(text.."\n")

@@ -10,7 +10,7 @@ function M.saveMinedBlocks(rememberBlocks, minedBlocks)
   if not rememberBlocks then
     return
   end
-  local f = fs.open("mined-blocks.txt","w")
+  local f = fs.open("mined-blocks.log","w")
   if f then
     for name,_ in pairs(minedBlocks) do
       f.write(name.."\n")

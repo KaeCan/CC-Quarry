@@ -1,3 +1,9 @@
+---@diagnostic disable: undefined-global
+---@type table
+fs = fs
+---@type table
+os = os
+
 local M = {}
 
 local red = colors.red
@@ -5,11 +11,21 @@ local green = colors.lime
 local white = colors.white
 local gray = colors.gray
 
+local logBuffer = {}
+local logEnabled = false
+
+local function logText(text)
+    if logEnabled then
+        table.insert(logBuffer, text)
+    end
+    print(text)
+end
+
 local function printColor(text, color)
     if term.isColor() then
         term.setTextColor(color)
     end
-    write(text)
+    logText(text)
     if term.isColor() then
         term.setTextColor(white)
     end
@@ -22,9 +38,9 @@ local stats = {
 }
 
 function M.describe(name, callback)
-    print()
-    printColor("Suite: " .. name, white)
-    print()
+    logText("")
+    logText("Suite: " .. name)
+    logText("")
     callback()
 end
 
@@ -34,13 +50,14 @@ function M.it(name, callback)
     if status then
         stats.passed = stats.passed + 1
         printColor("  [PASS] ", green)
-        print(name)
+        logText(name)
     else
         stats.failed = stats.failed + 1
         printColor("  [FAIL] ", red)
-        print(name)
-        printColor("    Error: " .. tostring(err), red)
-        print()
+        logText(name)
+        local errorMsg = "    Error: " .. tostring(err)
+        printColor(errorMsg, red)
+        logText("")
     end
 end
 
@@ -80,14 +97,115 @@ function M.expect(actual)
 end
 
 function M.printStats()
-    print()
-    print(string.rep("-", 20))
-    printColor("Total: " .. stats.total, white)
-    print(" | ", white)
-    printColor("Passed: " .. stats.passed, green)
-    print(" | ", white)
-    printColor("Failed: " .. stats.failed, stats.failed > 0 and red or green)
-    print()
+    logText("")
+    local separator = string.rep("-", 20)
+    logText(separator)
+
+    local totalText = "Total: " .. stats.total
+    printColor(totalText, white)
+
+    if term.isColor() then
+        term.setTextColor(white)
+    end
+    logText(" | ")
+
+    local passedText = "Passed: " .. stats.passed
+    printColor(passedText, green)
+
+    if term.isColor() then
+        term.setTextColor(white)
+    end
+    logText(" | ")
+
+    local failedText = "Failed: " .. stats.failed
+    printColor(failedText, stats.failed > 0 and red or green)
+
+    logText("")
+end
+
+function M.enableLogging()
+    logEnabled = true
+    logBuffer = {}
+end
+
+function M.logPrint(...)
+    local args = {...}
+    local text = ""
+    for i, arg in ipairs(args) do
+        if i > 1 then
+            text = text .. "\t"
+        end
+        text = text .. tostring(arg)
+    end
+    logText(text)
+end
+
+function M.saveLog(filename)
+    if not logEnabled or not fs then
+        return false
+    end
+
+    filename = filename or "test_log.txt"
+    local file = fs.open(filename, "w")
+    if not file then
+        return false
+    end
+
+    file.write("Quarry Test Suite Log\n")
+    file.write("====================\n")
+    if os and os.date then
+        file.write("Date: " .. os.date() .. "\n")
+    end
+    file.write("\n")
+
+    for _, line in ipairs(logBuffer) do
+        file.write(line .. "\n")
+    end
+
+    file.write("\n")
+    file.write("Summary:\n")
+    file.write("  Total: " .. stats.total .. "\n")
+    file.write("  Passed: " .. stats.passed .. "\n")
+    file.write("  Failed: " .. stats.failed .. "\n")
+
+    file.close()
+    return true
+end
+
+function M.saveResults()
+    if not logEnabled or not fs then
+        return false
+    end
+
+    local filename = "test_results.log"
+    local file = fs.open(filename, "w")
+    if not file then
+        print("Warning: Could not create " .. filename)
+        return false
+    end
+
+    file.write("Quarry Unit Test Results\n")
+    file.write("========================\n\n")
+    if os and os.date then
+        file.write("Date: " .. os.date() .. "\n\n")
+    end
+
+    file.write("Test Summary:\n")
+    file.write("  Total: " .. stats.total .. "\n")
+    file.write("  Passed: " .. stats.passed .. "\n")
+    file.write("  Failed: " .. stats.failed .. "\n")
+
+    if stats.failed > 0 then
+        file.write("\nStatus: FAILED\n")
+        file.write("\nFull test log available in test.log\n")
+    else
+        file.write("\nStatus: PASSED\n")
+        file.write("\nAll unit tests passed!\n")
+    end
+
+    file.close()
+    print("Unit test results saved to " .. filename)
+    return true
 end
 
 return M
