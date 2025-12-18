@@ -67,13 +67,45 @@ local function createDefaultConfig(configPath)
   }
 
   local file = fs.open(configPath, "w")
-  if file then
-    file.write(textutils.serialize(defaultConfig))
-    file.close()
-    print("Created default quarry.config")
-    return true
+  if not file then
+    return false
   end
-  return false
+
+  local keyOrder = {
+    "width", "length", "offsetH", "maxDepth", "skipHoles",
+    "fuelSources", "enableLogging", "silent", "statusDelay", "rememberBlocks"
+  }
+
+  file.write("{\n")
+  for i, key in ipairs(keyOrder) do
+    local value = defaultConfig[key]
+    local valueStr
+    if value == nil then
+      valueStr = "nil"
+    elseif type(value) == "string" then
+      valueStr = "\"" .. value .. "\""
+    elseif type(value) == "boolean" then
+      valueStr = tostring(value)
+    elseif type(value) == "number" then
+      valueStr = tostring(value)
+    elseif type(value) == "table" then
+      valueStr = textutils.serialize(value)
+    else
+      valueStr = tostring(value)
+    end
+
+    file.write("  " .. key .. " = " .. valueStr)
+    if i < #keyOrder then
+      file.write(",\n")
+    else
+      file.write("\n")
+    end
+  end
+  file.write("}")
+
+  file.close()
+  print("Created default quarry.config")
+  return true
 end
 
 local function createDefaultAllowList(listPath)
