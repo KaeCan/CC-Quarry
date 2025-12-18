@@ -1,45 +1,43 @@
 # Quarry Installation & Update System
 
-## Setup Instructions
-
-### 1. Upload Files to GitHub
-
-1. Create a GitHub repository for your quarry code
-2. Upload all files to the repository (including `install.lua`)
-3. Update `install.lua` line 11 with your repository URL:
-   ```lua
-   local REPO_BASE = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/"
-   ```
-   Replace `YOUR_USERNAME` and `YOUR_REPO` with your actual GitHub username and repository name.
-
-### 2. Initial Installation on Turtle
+### 1. Initial Installation on Turtle
 
 On your turtle, download and run the install script:
 
 ```lua
-wget https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/install.lua install.lua
+wget https://raw.githubusercontent.com/KaeCan/CC-Quarry/refs/heads/main/install.lua install.lua
 install quarry
 ```
 
+Or specify a custom folder:
+
+```lua
+install my-quarry-folder
+```
+
 This will:
-- Download all quarry files to `./quarry/`
+- Download all quarry files to the specified folder (or `./quarry/` if no folder is specified)
 - Create default `allow.list`, `ignore.list`, and `quarry.config` if they don't exist
-- Preserve existing config files if they already exist
+- If no folder is specified, installs to the current directory
 
-**Note:** The HTTP API must be enabled on your turtle for `wget` and `http.get()` to work.
+### 2. Updating
 
-### 3. Updating
-
-To update to the latest version, simply run:
+To update to the latest version, run the install script with the same folder name:
 
 ```lua
 install quarry
+```
+
+Or update a different folder:
+
+```lua
+install my-quarry-folder
 ```
 
 The script will:
 - Download and replace all code files with the latest versions
 - Preserve your existing `allow.list`, `ignore.list`, and `quarry.config`
-- Keep your customizations intact
+- Create default config files only if they don't already exist
 
 ## File Structure
 
@@ -95,3 +93,5 @@ quarry w:32 l:32 maxd:50
 
 - The install script uses `http.get()` which requires the HTTP API to be enabled
 - Config files (`allow.list`, `ignore.list`, `quarry.config`) are never overwritten
+- If you don't specify a folder, the script installs to the current directory
+- You can install to multiple folders by running `install` with different folder names

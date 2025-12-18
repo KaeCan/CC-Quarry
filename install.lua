@@ -8,7 +8,7 @@ shell = shell
 ---@type table
 textutils = textutils
 
-local REPO_BASE = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/"
+local REPO_BASE = "https://raw.githubusercontent.com/KaeCan/CC-Quarry/refs/heads/main/"
 
 local function printUsage()
   print("Usage: install [target_folder]")
@@ -183,16 +183,19 @@ local function install(targetDir)
   local ignoreListPath = targetDir .. "ignore.list"
   local configPath = targetDir .. "quarry.config"
 
-  if not fileExists(allowListPath) then
-    createDefaultAllowList(allowListPath)
-  else
-    print("Preserving existing allow.list")
-  end
+  local allowExists = fileExists(allowListPath)
+  local ignoreExists = fileExists(ignoreListPath)
 
-  if not fileExists(ignoreListPath) then
+  if not allowExists and not ignoreExists then
+    createDefaultAllowList(allowListPath)
     createDefaultIgnoreList(ignoreListPath)
   else
-    print("Preserving existing ignore.list")
+    if allowExists then
+      print("Preserving existing allow.list")
+    end
+    if ignoreExists then
+      print("Preserving existing ignore.list")
+    end
   end
 
   if not fileExists(configPath) then
