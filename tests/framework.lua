@@ -3,7 +3,10 @@
 fs = fs
 ---@type table
 os = os
+---@type table
+shell = shell
 
+local utils = require("modules.utils")
 local M = {}
 
 local red = colors.red
@@ -145,8 +148,10 @@ function M.saveLog(filename)
         return false
     end
 
-    filename = filename or "test_log.txt"
-    local file = fs.open(filename, "w")
+    filename = filename or "test.log"
+    local logPath = utils.getScriptPath(filename)
+
+    local file = fs.open(logPath, "w")
     if not file then
         return false
     end
@@ -169,42 +174,6 @@ function M.saveLog(filename)
     file.write("  Failed: " .. stats.failed .. "\n")
 
     file.close()
-    return true
-end
-
-function M.saveResults()
-    if not logEnabled or not fs then
-        return false
-    end
-
-    local filename = "test_results.log"
-    local file = fs.open(filename, "w")
-    if not file then
-        print("Warning: Could not create " .. filename)
-        return false
-    end
-
-    file.write("Quarry Unit Test Results\n")
-    file.write("========================\n\n")
-    if os and os.date then
-        file.write("Date: " .. os.date() .. "\n\n")
-    end
-
-    file.write("Test Summary:\n")
-    file.write("  Total: " .. stats.total .. "\n")
-    file.write("  Passed: " .. stats.passed .. "\n")
-    file.write("  Failed: " .. stats.failed .. "\n")
-
-    if stats.failed > 0 then
-        file.write("\nStatus: FAILED\n")
-        file.write("\nFull test log available in test.log\n")
-    else
-        file.write("\nStatus: PASSED\n")
-        file.write("\nAll unit tests passed!\n")
-    end
-
-    file.close()
-    print("Unit test results saved to " .. filename)
     return true
 end
 

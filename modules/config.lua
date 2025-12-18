@@ -24,23 +24,7 @@ local defaultConfig = {
 }
 
 function M.getConfigFile()
-  local configFile = nil
-  if shell then
-    local scriptPath = shell.getRunningProgram()
-    if scriptPath then
-      local scriptDir = scriptPath:match("^(.+)/[^/]+$")
-      if scriptDir then
-        configFile = scriptDir .. "/quarry.config"
-      else
-        configFile = "/quarry.config"
-      end
-    else
-      configFile = "quarry.config"
-    end
-  else
-    configFile = "quarry.config"
-  end
-  return configFile
+  return utils.getScriptPath("quarry.config")
 end
 
 function M.load()

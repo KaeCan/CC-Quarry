@@ -4,6 +4,7 @@ fs = fs
 ---@type table
 os = os
 
+local utils = require("modules.utils")
 local M = {}
 
 local enabled = false
@@ -96,7 +97,8 @@ function M.saveResults()
   if not enabled then return false end
 
   local filename = "test_results.log"
-  local file = fs.open(filename, "w")
+  local filepath = utils.getScriptPath(filename)
+  local file = fs.open(filepath, "w")
   if not file then
     print("Warning: Could not create " .. filename)
     return false

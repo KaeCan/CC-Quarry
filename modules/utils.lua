@@ -19,25 +19,35 @@ function M.isTableEmpty(tbl)
   return true
 end
 
-function M.findFile(filename)
+function M.getScriptDir()
   if shell then
     local scriptPath = shell.getRunningProgram()
     if scriptPath then
       local scriptDir = scriptPath:match("^(.+)/[^/]+$")
       if scriptDir then
-        local filepath = scriptDir .. "/" .. filename
-        if fs.exists(filepath) and not fs.isDir(filepath) then
-          return filepath
-        end
+        return scriptDir
       else
-        local filepath = "/" .. filename
-        if fs.exists(filepath) and not fs.isDir(filepath) then
-          return filepath
-        end
+        return "/"
       end
     end
   end
+  return nil
+end
 
+function M.getScriptPath(filename)
+  local scriptDir = M.getScriptDir()
+  if scriptDir then
+    return scriptDir .. "/" .. filename
+  else
+    return filename
+  end
+end
+
+function M.findFile(filename)
+  local filepath = M.getScriptPath(filename)
+  if fs.exists(filepath) and not fs.isDir(filepath) then
+    return filepath
+  end
   return nil
 end
 

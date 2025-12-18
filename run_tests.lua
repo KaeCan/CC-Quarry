@@ -25,7 +25,3 @@ framework.printStats()
 if framework.saveLog("test.log") then
     framework.logPrint("Test log saved to test.log")
 end
-
-if framework.saveResults() then
-    framework.logPrint("Test results saved to test_results.log")
-end

@@ -10,6 +10,7 @@ term = term
 ---@type function
 sleep = sleep
 
+local utils = require("modules.utils")
 local M = {}
 
 local config = {
@@ -31,7 +32,8 @@ function M.log(text)
   if not config.enableLogging then
     return
   end
-  local f = fs.open("quarry.log","a")
+  local logFile = utils.getScriptPath("quarry.log")
+  local f = fs.open(logFile, "a")
   if f then
     f.write(tostring(os.date()).."\n")
     f.write(text.."\n")
