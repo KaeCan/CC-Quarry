@@ -8,7 +8,11 @@ shell = shell
 ---@type table
 textutils = textutils
 
-local REPO_BASE = "https://raw.githubusercontent.com/KaeCan/CC-Quarry/refs/heads/main/"
+local REPO_OWNER = "KaeCan"
+local REPO_NAME = "CC-Quarry"
+local REPO_BRANCH = "main"
+local GITHUB_API_BASE = "https://api.github.com/repos/" .. REPO_OWNER .. "/" .. REPO_NAME
+local GITHUB_RAW_BASE = "https://raw.githubusercontent.com/" .. REPO_OWNER .. "/" .. REPO_NAME
 
 local function printUsage()
   print("Usage: install [target_folder]")
@@ -24,13 +28,30 @@ local function ensureDir(path)
   end
 end
 
+local function getLatestCommitHash()
+  print("Fetching latest commit hash...")
+  local apiUrl = GITHUB_API_BASE .. "/commits/" .. REPO_BRANCH
+
+  local response = http.get(apiUrl)
+  if not response then
+    return nil, "Failed to fetch commit hash from GitHub API"
+  end
+
+  local content = response.readAll()
+  response.close()
+
+  local shaMatch = content:match('"sha"%s*:%s*"([a-f0-9]+)"')
+  if shaMatch then
+    return shaMatch
+  end
+
+  return nil, "Could not parse commit hash from API response"
+end
+
 local function downloadFile(url, filepath)
   print("Downloading " .. filepath .. "...")
-  local cacheBuster = (os.time() or 0) .. "_" .. (math.random(1000, 9999) or 1234)
-  local separator = url:find("?") and "&" or "?"
-  local cacheUrl = url .. separator .. "cb=" .. tostring(cacheBuster)
 
-  local response = http.get(cacheUrl)
+  local response = http.get(url)
   if not response then
     return false, "Failed to download: " .. url
   end
@@ -173,7 +194,17 @@ local function install(targetDir)
   end
 
   print("Installing/updating quarry in: " .. targetDir)
-  print("Repository: " .. REPO_BASE)
+  print("Repository: " .. REPO_OWNER .. "/" .. REPO_NAME .. " (" .. REPO_BRANCH .. ")")
+  print()
+
+  local commitHash, err = getLatestCommitHash()
+  if not commitHash then
+    print("Error: " .. err)
+    print("Falling back to branch-based URL (may be cached)")
+    commitHash = REPO_BRANCH
+  else
+    print("Using commit: " .. commitHash:sub(1, 7) .. "...")
+  end
   print()
 
   ensureDir(targetDir .. "modules")
@@ -206,7 +237,7 @@ local function install(targetDir)
   }
 
   for _, file in ipairs(files) do
-    local url = REPO_BASE .. file
+    local url = GITHUB_RAW_BASE .. "/" .. commitHash .. "/" .. file
     local filepath = targetDir .. file
     local ok, err = downloadFile(url, filepath)
     if not ok then
