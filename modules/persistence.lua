@@ -11,7 +11,7 @@ function M.saveMinedBlocks(rememberBlocks, minedBlocks)
   if not rememberBlocks then
     return
   end
-  local logFile = utils.getScriptPath("mined-blocks.log")
+  local logFile = utils.getScriptPath("mined_blocks.log")
   local f = fs.open(logFile, "w")
   if f then
     for name,_ in pairs(minedBlocks) do
@@ -22,7 +22,7 @@ function M.saveMinedBlocks(rememberBlocks, minedBlocks)
 end
 
 function M.saveHoleCount(holeCount)
-  local logFile = utils.getScriptPath("lastHole.log")
+  local logFile = utils.getScriptPath("last_hole.log")
   local f = fs.open(logFile, "w")
   if f then
     f.write(tostring(holeCount))
@@ -31,7 +31,7 @@ function M.saveHoleCount(holeCount)
 end
 
 function M.loadHoleCount()
-  local logFile = utils.getScriptPath("lastHole.log")
+  local logFile = utils.getScriptPath("last_hole.log")
   if fs.exists(logFile) and not fs.isDir(logFile) then
     local f = fs.open(logFile, "r")
     if f then

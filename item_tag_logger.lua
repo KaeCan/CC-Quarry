@@ -1,12 +1,25 @@
 -- Item Tag Logger
 -- Detects the first item in the turtle's inventory and logs its tags
 
+---@diagnostic disable: undefined-global
+---@type table
+fs = fs
+---@type table
+os = os
+---@type table
+turtle = turtle
+---@type table
+textutils = textutils
+---@type table
+peripheral = peripheral
+
 if not turtle then
   print("This program can only be executed by a turtle!")
   return
 end
 
-local logFile = "item-tags.log"
+local utils = require("modules.utils")
+local logFile = utils.getScriptPath("item_tags.log")
 
 local function writeToFile(text)
   local f = fs.open(logFile, "w")
@@ -120,4 +133,3 @@ print(logEntry)
 writeToFile(logEntry)
 print("\nLogged to: " .. logFile)
 print("Program complete.")
-
