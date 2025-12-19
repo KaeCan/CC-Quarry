@@ -230,15 +230,6 @@ local function main()
     logger.log("Main: hole completed, current pos (" .. tostring(nextX) .. "," .. tostring(nextY) ..
                ") facing=" .. tostring(nextFacing))
 
-    if (state.posx == config.width) then
-      logger.log("Main: at width boundary, checking if done")
-      if ((state.facing == direction.front) and ((state.posy + 5) > config.length))
-          or ((state.facing == direction.back) and ((state.posy-5) < 1)) then
-        logger.log("Main: quarry complete condition met")
-        running = false
-      end
-    end
-
     if running then
       logger.log("Main: calculating next hole position")
       if state.facing == direction.front then
@@ -252,7 +243,7 @@ local function main()
           logger.log("Main: next hole forward 3 spaces then next row to (" .. tostring(nextX) .. "," .. tostring(nextY) .. ")")
         else
           nextX = state.posx + 1
-          nextY = state.posy - 2
+          nextY = config.length
           nextFacing = direction.back
           logger.log("Main: next hole next row backward to (" .. tostring(nextX) .. "," .. tostring(nextY) .. ")")
         end
@@ -267,13 +258,18 @@ local function main()
           logger.log("Main: next hole backward 2 spaces then next row to (" .. tostring(nextX) .. "," .. tostring(nextY) .. ")")
         else
           nextX = state.posx + 1
-          nextY = state.posy + 3
+          nextY = 1
           nextFacing = direction.front
           logger.log("Main: next hole next row forward to (" .. tostring(nextX) .. "," .. tostring(nextY) .. ")")
         end
       end
       logger.log("Main: next hole target (" .. tostring(nextX) .. "," .. tostring(nextY) ..
                  ") facing=" .. tostring(nextFacing))
+
+      if nextX > config.width then
+        logger.log("Main: next hole would exceed width boundary (" .. tostring(nextX) .. " > " .. tostring(config.width) .. "), quarry complete")
+        running = false
+      end
     end
 
     logger.log("Main: returning home, continueAfterwards=" .. tostring(running))

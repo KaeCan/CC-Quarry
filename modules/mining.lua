@@ -310,7 +310,7 @@ function M.calculateSkipOffset()
         else
           x = x+1
           facing = tracker.direction.back
-          y = y-2
+          y = config.length
         end
       elseif facing == tracker.direction.back then
         if y-5 >= 1 then
@@ -322,7 +322,7 @@ function M.calculateSkipOffset()
         else
           x = x+1
           facing = tracker.direction.front
-          y = y+3
+          y = 1
         end
       end
     end
