@@ -60,12 +60,20 @@ function M.createTurtle()
     -- Fuel
     function mock.getFuelLevel() return fuelLevel end
     function mock.refuel(count)
-        -- Simplified refuel logic
         if mock.getItemCount(selectedSlot) > 0 then
-            fuelLevel = fuelLevel + 80
-            inventory[selectedSlot].count = inventory[selectedSlot].count - 1
-            if inventory[selectedSlot].count <= 0 then inventory[selectedSlot] = nil end
-            return true
+            local item = inventory[selectedSlot]
+            local fuelItems = {
+                ["minecraft:coal"] = true,
+                ["minecraft:charcoal"] = true,
+                ["minecraft:lava_bucket"] = true,
+                ["minecraft:blaze_rod"] = true
+            }
+            if fuelItems[item.name] then
+                fuelLevel = fuelLevel + 80
+                inventory[selectedSlot].count = inventory[selectedSlot].count - 1
+                if inventory[selectedSlot].count <= 0 then inventory[selectedSlot] = nil end
+                return true
+            end
         end
         return false
     end
