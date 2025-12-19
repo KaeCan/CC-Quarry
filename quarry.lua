@@ -189,11 +189,46 @@ local function main()
   end
 
   if not resumed then
+    logger.log("Main: calculating fuel needed for layer clearing")
+    local layerFuelNeeded = fuel.calculateFuelNeededForLayerClearing(config.width, config.length)
+    logger.log("Main: fuel needed for layer clearing: " .. tostring(layerFuelNeeded))
+    local layerFuelCheckCount = 0
+    while turtle.getFuelLevel() < layerFuelNeeded do
+      layerFuelCheckCount = layerFuelCheckCount + 1
+      logger.log("Main: insufficient fuel for layer clearing, attempt " .. tostring(layerFuelCheckCount) .. ", waiting")
+      sleep(3)
+    end
+    if layerFuelCheckCount > 0 then
+      logger.log("Main: fuel check for layer clearing passed after " .. tostring(layerFuelCheckCount) .. " attempts")
+    end
+
     logger.log("Main: clearing top layer")
     mining.clearLayer()
+
+    logger.log("Main: fuel check after layer clearing")
+    local fuelCheckCount = 0
+    while (not fuel.checkFuel(state.posx, state.posy, state.depth, 2, true)) do
+      fuelCheckCount = fuelCheckCount + 1
+      logger.log("Main: fuel check after layer clearing failed, attempt " .. tostring(fuelCheckCount) .. ", waiting")
+      sleep(3)
+    end
+    if fuelCheckCount > 0 then
+      logger.log("Main: fuel check after layer clearing passed after " .. tostring(fuelCheckCount) .. " attempts")
+    end
   else
     logger.log("Main: skipping layer clearing (resuming from previous session)")
     logger.status("Skipping layer clearing (resuming from previous session)", colors.lime)
+
+    logger.log("Main: fuel check on resume")
+    local fuelCheckCount = 0
+    while (not fuel.checkFuel(state.posx, state.posy, state.depth, 2, true)) do
+      fuelCheckCount = fuelCheckCount + 1
+      logger.log("Main: fuel check on resume failed, attempt " .. tostring(fuelCheckCount) .. ", waiting")
+      sleep(3)
+    end
+    if fuelCheckCount > 0 then
+      logger.log("Main: fuel check on resume passed after " .. tostring(fuelCheckCount) .. " attempts")
+    end
   end
 
   -- Skip holes if needed

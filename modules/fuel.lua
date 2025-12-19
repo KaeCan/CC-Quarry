@@ -69,4 +69,16 @@ function M.calculateFuelNeeded(targetX, targetY)
   return totalFuel
 end
 
+function M.calculateFuelNeededForLayerClearing(width, length)
+  local movementsPerRow = length - 1
+  local totalMovements = width * movementsPerRow + (width - 1)
+  local fuelForMovements = totalMovements * 1
+  local fuelForDigging = width * length * 2
+  local fuelToReturn = (width - 1) + (length - 1) + 100
+  local totalFuel = (fuelForMovements + fuelForDigging + fuelToReturn) * 2
+  logger.log("calculateFuelNeededForLayerClearing: width=" .. tostring(width) .. " length=" .. tostring(length) ..
+             " movements=" .. tostring(totalMovements) .. " total=" .. tostring(totalFuel))
+  return totalFuel
+end
+
 return M

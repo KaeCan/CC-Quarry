@@ -21,9 +21,16 @@ function M.select(slot)
 end
 
 function M.forward()
-  local blocked = false
+  local attempts = 0
+  local maxAttempts = 10
   while not turtle.forward() do
-    blocked = true
+    if turtle.getFuelLevel() == 0 then
+      error("Out of fuel! Cannot move forward.")
+    end
+    attempts = attempts + 1
+    if attempts > maxAttempts then
+      error("Cannot move forward after " .. tostring(maxAttempts) .. " attempts. Blocked or out of fuel.")
+    end
     M.select(1)
     turtle.dig()
     turtle.attack()
@@ -37,11 +44,19 @@ function M.forward()
   else
     M.state.posx = M.state.posx - 1
   end
-  -- Debug logging will be done via logger.logPosition() calls from mining module
 end
 
 function M.up()
+  local attempts = 0
+  local maxAttempts = 10
   while not turtle.up() do
+    if turtle.getFuelLevel() == 0 then
+      error("Out of fuel! Cannot move up.")
+    end
+    attempts = attempts + 1
+    if attempts > maxAttempts then
+      error("Cannot move up after " .. tostring(maxAttempts) .. " attempts. Blocked or out of fuel.")
+    end
     M.select(1)
     turtle.digUp()
     turtle.attackUp()
@@ -49,7 +64,16 @@ function M.up()
 end
 
 function M.down()
+  local attempts = 0
+  local maxAttempts = 10
   while not turtle.down() do
+    if turtle.getFuelLevel() == 0 then
+      error("Out of fuel! Cannot move down.")
+    end
+    attempts = attempts + 1
+    if attempts > maxAttempts then
+      error("Cannot move down after " .. tostring(maxAttempts) .. " attempts. Blocked or out of fuel.")
+    end
     M.select(1)
     turtle.digDown()
     turtle.attackDown()

@@ -344,3 +344,235 @@ describe("Mining Module - Filter Integration", function()
         turtle.detectDown = originalDetectDown
     end)
 end)
+describe("Mining Module - Boundary Handling", function()
+    it("calculateSkipOffset: Y stays within bounds when transitioning rows (front to back)", function()
+        -- Start at (1,1) facing front, can't move +5 or +3, so should go to (2,3) facing back
+        mining.setup({
+            width = 16,
+            length = 3,
+            offsetH = 0,
+            maxDepth = 4,
+            skipHoles = 1,  -- Skip 1 hole: (1,1) -> (2,3)
+            rememberBlocks = false,
+            minedBlocks = {},
+            holeCount = 0
+        })
+
+        local x, y, facing, running = mining.calculateSkipOffset()
+
+        -- Verify Y is within bounds and correct
+        expect(y >= 1).toBe(true)
+        expect(y <= 3).toBe(true)
+        expect(x).toBe(2)
+        expect(y).toBe(3)  -- Should be at back end (config.length)
+        expect(facing).toBe(tracker.direction.back)
+    end)
+
+    it("calculateSkipOffset: Y stays within bounds when transitioning rows (back to front)", function()
+        mining.setup({
+            width = 16,
+            length = 3,
+            offsetH = 0,
+            maxDepth = 4,
+            skipHoles = 0,
+            rememberBlocks = false,
+            minedBlocks = {},
+            holeCount = 0
+        })
+
+        -- Simulate being at (2,1) facing back, can't move backward
+        -- Need to manually advance to this state
+        mining.setup({
+            width = 16,
+            length = 3,
+            offsetH = 0,
+            maxDepth = 4,
+            skipHoles = 2,  -- Skip 2 holes: (1,1) -> (2,3) -> (3,1)
+            rememberBlocks = false,
+            minedBlocks = {},
+            holeCount = 0
+        })
+
+        local x, y, facing, running = mining.calculateSkipOffset()
+
+        -- Should be at (3,1) facing front
+        expect(y >= 1).toBe(true)
+        expect(y <= 3).toBe(true)
+        expect(y).toBe(1)  -- Should start at front end
+        expect(facing).toBe(tracker.direction.front)
+    end)
+
+    it("calculateSkipOffset: handles small length correctly (length=3)", function()
+        mining.setup({
+            width = 16,
+            length = 3,
+            offsetH = 0,
+            maxDepth = 4,
+            skipHoles = 0,
+            rememberBlocks = false,
+            minedBlocks = {},
+            holeCount = 0
+        })
+
+        -- Test multiple transitions
+        for skipCount = 0, 10 do
+            mining.setup({
+                width = 16,
+                length = 3,
+                offsetH = 0,
+                maxDepth = 4,
+                skipHoles = skipCount,
+                rememberBlocks = false,
+                minedBlocks = {},
+                holeCount = 0
+            })
+
+            local x, y, facing, running = mining.calculateSkipOffset()
+
+            -- Y must always be between 1 and 3
+            expect(y >= 1).toBe(true)
+            expect(y <= 3).toBe(true)
+            -- X must not exceed width
+            expect(x <= 16).toBe(true)
+        end
+    end)
+
+    it("calculateSkipOffset: never produces negative Y coordinates", function()
+        mining.setup({
+            width = 5,
+            length = 2,  -- Very small length
+            offsetH = 0,
+            maxDepth = 4,
+            skipHoles = 0,
+            rememberBlocks = false,
+            minedBlocks = {},
+            holeCount = 0
+        })
+
+        -- Test many transitions to catch any negative Y
+        for skipCount = 0, 20 do
+            mining.setup({
+                width = 5,
+                length = 2,
+                offsetH = 0,
+                maxDepth = 4,
+                skipHoles = skipCount,
+                rememberBlocks = false,
+                minedBlocks = {},
+                holeCount = 0
+            })
+
+            local x, y, facing, running = mining.calculateSkipOffset()
+
+            expect(y >= 1).toBe(true)  -- Must never be negative
+            expect(y <= 2).toBe(true)  -- Must never exceed length
+        end
+    end)
+
+    it("calculateSkipOffset: never exceeds length boundary", function()
+        mining.setup({
+            width = 10,
+            length = 3,
+            offsetH = 0,
+            maxDepth = 4,
+            skipHoles = 0,
+            rememberBlocks = false,
+            minedBlocks = {},
+            holeCount = 0
+        })
+
+        -- Test many transitions
+        for skipCount = 0, 30 do
+            mining.setup({
+                width = 10,
+                length = 3,
+                offsetH = 0,
+                maxDepth = 4,
+                skipHoles = skipCount,
+                rememberBlocks = false,
+                minedBlocks = {},
+                holeCount = 0
+            })
+
+            local x, y, facing, running = mining.calculateSkipOffset()
+
+            expect(y <= 3).toBe(true)  -- Must never exceed length
+            expect(y >= 1).toBe(true)   -- Must never be less than 1
+        end
+    end)
+
+    it("calculateSkipOffset: correctly transitions from front to back at row boundary", function()
+        mining.setup({
+            width = 16,
+            length = 3,
+            offsetH = 0,
+            maxDepth = 4,
+            skipHoles = 1,  -- Start at (1,1), skip 1 -> should be at (2,3) facing back
+            rememberBlocks = false,
+            minedBlocks = {},
+            holeCount = 0
+        })
+
+        local x, y, facing, running = mining.calculateSkipOffset()
+
+        -- At (1,1) facing front, can't move +5 or +3, so should go to (2,3) facing back
+        expect(x).toBe(2)
+        expect(y).toBe(3)  -- Should be at back end (config.length)
+        expect(facing).toBe(tracker.direction.back)
+    end)
+
+    it("calculateSkipOffset: correctly transitions from back to front at row boundary", function()
+        mining.setup({
+            width = 16,
+            length = 3,
+            offsetH = 0,
+            maxDepth = 4,
+            skipHoles = 2,  -- (1,1) -> (2,3) -> (3,1) facing front
+            rememberBlocks = false,
+            minedBlocks = {},
+            holeCount = 0
+        })
+
+        local x, y, facing, running = mining.calculateSkipOffset()
+
+        -- At (2,3) facing back, can't move -5 or -2, so should go to (3,1) facing front
+        expect(x).toBe(3)
+        expect(y).toBe(1)  -- Should be at front end
+        expect(facing).toBe(tracker.direction.front)
+    end)
+
+    it("calculateSkipOffset: handles edge case at last row correctly", function()
+        mining.setup({
+            width = 3,
+            length = 3,
+            offsetH = 0,
+            maxDepth = 4,
+            skipHoles = 0,
+            rememberBlocks = false,
+            minedBlocks = {},
+            holeCount = 0
+        })
+
+        -- Test skipping to positions near the last row
+        for skipCount = 0, 10 do
+            mining.setup({
+                width = 3,
+                length = 3,
+                offsetH = 0,
+                maxDepth = 4,
+                skipHoles = skipCount,
+                rememberBlocks = false,
+                minedBlocks = {},
+                holeCount = 0
+            })
+
+            local x, y, facing, running = mining.calculateSkipOffset()
+
+            -- X should never exceed width
+            expect(x <= 3).toBe(true)
+            -- Y should always be valid
+            expect(y >= 1).toBe(true)
+            expect(y <= 3).toBe(true)
+        end
+    end)
+end)

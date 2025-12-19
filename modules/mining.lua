@@ -24,7 +24,8 @@ local config = {
   skipHoles = 0,
   rememberBlocks = false,
   minedBlocks = {},
-  holeCount = 0
+  holeCount = 0,
+  layerCleared = false
 }
 
 function M.setup(conf)
@@ -94,6 +95,13 @@ function M.backHome(continueAfterwards, targetX, targetY)
     for i=1,16 do
       inventory.useFuelItem(i)
     end
+  else
+    for i=1,16 do
+      if turtle.getItemCount(i) > 0 then
+        tracker.select(i)
+        turtle.refuel()
+      end
+    end
   end
 
   -- drop desired items into chest
@@ -118,6 +126,19 @@ function M.backHome(continueAfterwards, targetX, targetY)
       if turtle.getFuelLevel() < fuelNeeded then
         logger.status("Need "..tostring(fuelNeeded).." fuel, have "..tostring(turtle.getFuelLevel())..". Waiting...", colors.orange)
         testHooks.onFuelWait(fuelNeeded, turtle.getFuelLevel())
+
+        if inventory.fuelSources then
+          for i=1,16 do
+            inventory.useFuelItem(i)
+          end
+        else
+          for i=1,16 do
+            if turtle.getItemCount(i) > 0 then
+              tracker.select(i)
+              turtle.refuel()
+            end
+          end
+        end
       end
       if not isEmpty then
         logger.status("Inventory not empty, trying to deposit...", colors.orange)
@@ -190,10 +211,7 @@ local function digSides()
       tracker.select(1)
       turtle.dig()
       logger.log("digSides side " .. tostring(i) .. ": mined block")
-      if inventory.isInventoryFull() then
-        logger.log("digSides: inventory full, returning home")
-        M.backHome(true)
-      end
+      -- Inventory is dumped after every hole, no need to check during digging
     end
     tracker.turnLeft()
   end
@@ -204,10 +222,6 @@ local function drill()
     logger.log("drill: block detected below, digging")
     tracker.select(1)
     turtle.digDown()
-    if inventory.isInventoryFull() then
-      logger.log("drill: inventory full, returning home")
-      M.backHome(true)
-    end
   end
 end
 
@@ -217,13 +231,6 @@ function M.digColumn()
              ") depth=" .. tostring(state.depth) .. " holeCount=" .. tostring(config.holeCount))
   drill()
   while true do
-    local fuelCheck = fuel.checkFuel(state.posx, state.posy, state.depth, 1, false)
-    logger.log("digColumn: fuel check at depth " .. tostring(state.depth) .. " result=" .. tostring(fuelCheck))
-    if not fuelCheck then
-      logger.log("digColumn: fuel check failed, returning home")
-      M.backHome(true)
-    end
-
     if not turtle.down() then
       drill()
       if not turtle.down() then
@@ -233,11 +240,11 @@ function M.digColumn()
     end
     state.depth = state.depth + 1
     logger.log("digColumn: moved down to depth " .. tostring(state.depth))
-    if inventory.isInventoryFull() then
-      logger.log("digColumn: inventory full at depth " .. tostring(state.depth) .. ", returning home")
-      M.backHome(true)
+    if not (config.layerCleared and state.depth == 0) then
+      digSides()
+    else
+      logger.log("digSides: skipping at depth 0 (layer already cleared)")
     end
-    digSides()
 
     if (config.maxDepth > 0) and (state.depth >= config.maxDepth) then
       logger.log("digColumn: reached maxDepth " .. tostring(config.maxDepth) .. " at depth " .. tostring(state.depth))
@@ -269,10 +276,6 @@ function M.stepsForward(count)
   local state = tracker.state
   if (count > 0) then
     for i=1,count do
-      if not fuel.checkFuel(state.posx, state.posy, state.depth, 1, false)
-          or inventory.isInventoryFull() then
-        M.backHome(true)
-      end
       tracker.forward()
     end
   end
@@ -343,19 +346,42 @@ function M.clearLayer()
   local state = tracker.state
   local direction = tracker.direction
 
+  local function checkFuelAndReturn()
+    local fuelNeeded = fuel.calculateFuelNeeded(state.posx, state.posy)
+    if turtle.getFuelLevel() < fuelNeeded then
+      logger.log("clearLayer: fuel low at (" .. tostring(state.posx) .. "," .. tostring(state.posy) ..
+                 "), returning home")
+      M.backHome(false)
+      return true
+    end
+    return false
+  end
+
   while state.posx > 1 do
+    if checkFuelAndReturn() then return end
     while state.facing ~= direction.left do
       tracker.turnLeft()
     end
-    tracker.forward()
+    local success, err = pcall(tracker.forward)
+    if not success then
+      logger.log("clearLayer: movement failed: " .. tostring(err))
+      M.backHome(false)
+      return
+    end
     logger.logPosition("navigate-to-start-x", state)
   end
 
   while state.posy > 1 do
+    if checkFuelAndReturn() then return end
     while state.facing ~= direction.back do
       tracker.turnLeft()
     end
-    tracker.forward()
+    local success, err = pcall(tracker.forward)
+    if not success then
+      logger.log("clearLayer: movement failed: " .. tostring(err))
+      M.backHome(false)
+      return
+    end
     logger.logPosition("navigate-to-start-y", state)
   end
 
@@ -364,6 +390,8 @@ function M.clearLayer()
   end
 
   for x = 1, config.width do
+    if checkFuelAndReturn() then return end
+
     local goingForward = (x % 2 == 1)
     local startY = goingForward and 1 or config.length
 
@@ -380,30 +408,12 @@ function M.clearLayer()
 
     local y = startY
 
-    if not fuel.checkFuel(state.posx, state.posy, state.depth, 1, false) then
-      local saveX, saveY = state.posx, state.posy
-      M.backHome(true, saveX, saveY)
-      if goingForward then
-        while state.facing ~= direction.front do tracker.turnLeft() end
-      else
-        while state.facing ~= direction.back do tracker.turnLeft() end
-      end
-    end
-
     if turtle.detect() then tracker.select(1); turtle.dig() end
     if turtle.detectDown() then tracker.select(1); turtle.digDown() end
     logger.logPosition(string.format("row-%d-col-%d", x, y), state)
 
     while true do
-       if not fuel.checkFuel(state.posx, state.posy, state.depth, 1, false) then
-         local saveX, saveY = state.posx, state.posy
-         M.backHome(true, saveX, saveY)
-         if goingForward then
-            while state.facing ~= direction.front do tracker.turnLeft() end
-         else
-            while state.facing ~= direction.back do tracker.turnLeft() end
-         end
-       end
+       if checkFuelAndReturn() then return end
 
        if goingForward then
          if y >= config.length then break end
@@ -411,36 +421,40 @@ function M.clearLayer()
          if y <= 1 then break end
        end
 
-       tracker.forward()
+       local success, err = pcall(tracker.forward)
+       if not success then
+         logger.log("clearLayer: movement failed: " .. tostring(err))
+         M.backHome(false)
+         return
+       end
        if goingForward then y = y + 1 else y = y - 1 end
 
        if turtle.detect() then tracker.select(1); turtle.dig() end
        if turtle.detectDown() then tracker.select(1); turtle.digDown() end
 
-       if inventory.isInventoryFull() then
-         inventory.compressInventory()
-         if inventory.isInventoryFull() then
-            local saveX, saveY = state.posx, state.posy
-            M.backHome(true, saveX, saveY)
-            if goingForward then
-                while state.facing ~= direction.front do tracker.turnLeft() end
-            else
-                while state.facing ~= direction.back do tracker.turnLeft() end
-            end
-         end
-       end
        logger.logPosition(string.format("row-%d-col-%d", x, y), state)
     end
 
     if x < config.width then
+      if checkFuelAndReturn() then return end
       if goingForward then
         tracker.turnRight()
-        tracker.forward()
+        local success, err = pcall(tracker.forward)
+        if not success then
+          logger.log("clearLayer: movement failed: " .. tostring(err))
+          M.backHome(false)
+          return
+        end
         logger.logPosition(string.format("transition-row-%d-to-%d", x, x+1), state)
         tracker.turnRight()
       else
         tracker.turnLeft()
-        tracker.forward()
+        local success, err = pcall(tracker.forward)
+        if not success then
+          logger.log("clearLayer: movement failed: " .. tostring(err))
+          M.backHome(false)
+          return
+        end
         logger.logPosition(string.format("transition-row-%d-to-%d", x, x+1), state)
         tracker.turnLeft()
       end
@@ -448,18 +462,31 @@ function M.clearLayer()
   end
 
   while state.posx > 1 do
+    if checkFuelAndReturn() then return end
     while state.facing ~= direction.left do tracker.turnLeft() end
-    tracker.forward()
+    local success, err = pcall(tracker.forward)
+    if not success then
+      logger.log("clearLayer: movement failed during return: " .. tostring(err))
+      M.backHome(false)
+      return
+    end
     logger.logPosition("return-to-home-x", state)
   end
   while state.posy > 1 do
+    if checkFuelAndReturn() then return end
     while state.facing ~= direction.back do tracker.turnLeft() end
-    tracker.forward()
+    local success, err = pcall(tracker.forward)
+    if not success then
+      logger.log("clearLayer: movement failed during return: " .. tostring(err))
+      M.backHome(false)
+      return
+    end
     logger.logPosition("return-to-home-y", state)
   end
   while state.facing ~= direction.front do tracker.turnLeft() end
 
   logger.status("Layer cleared.", colors.lime)
+  config.layerCleared = true
   inventory.compressInventory()
 
   if not inventory.isInventoryEmpty() then
@@ -471,6 +498,13 @@ function M.clearLayer()
     if inventory.fuelSources then
         logger.status("Trying to use fuel...", colors.lightBlue)
         for i=1,16 do inventory.useFuelItem(i) end
+    else
+        for i=1,16 do
+          if turtle.getItemCount(i) > 0 then
+            tracker.select(i)
+            turtle.refuel()
+          end
+        end
     end
 
     inventory.dropItemsInChest()
@@ -479,6 +513,20 @@ function M.clearLayer()
     while turtle.getFuelLevel() < fuelNeeded do
        logger.status("Need "..tostring(fuelNeeded).." fuel, have "..tostring(turtle.getFuelLevel())..". Waiting...", colors.orange)
        testHooks.onFuelWait(fuelNeeded, turtle.getFuelLevel())
+
+       if inventory.fuelSources then
+         for i=1,16 do
+           inventory.useFuelItem(i)
+         end
+       else
+         for i=1,16 do
+           if turtle.getItemCount(i) > 0 then
+             tracker.select(i)
+             turtle.refuel()
+           end
+         end
+       end
+
        sleep(3)
     end
 

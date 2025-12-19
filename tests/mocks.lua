@@ -80,6 +80,32 @@ function M.createTurtle()
     function mock.dropUp(count) return mock.drop(count) end
     function mock.dropDown(count) return mock.drop(count) end
 
+    function mock.suckUp(count)
+        if mock._suckUpItem then
+            local suckCount = count or mock._suckUpItem.count
+            local emptySlot = nil
+            for i=1,16 do
+                if not inventory[i] or inventory[i].count == 0 then
+                    emptySlot = i
+                    break
+                end
+            end
+            if emptySlot then
+                inventory[emptySlot] = {name=mock._suckUpItem.name, count=suckCount}
+                return true
+            end
+        end
+        return false
+    end
+
+    function mock._setSuckUpItem(name, count)
+        mock._suckUpItem = {name=name, count=count or 1}
+    end
+
+    function mock._clearSuckUpItem()
+        mock._suckUpItem = nil
+    end
+
     -- Custom Helpers for Tests
     function mock._setInventory(slot, name, count, damage)
         inventory[slot] = {name=name, count=count, damage=damage or 0}
