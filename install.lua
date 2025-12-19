@@ -59,9 +59,32 @@ local function downloadFile(url, filepath)
   local content = response.readAll()
   response.close()
 
+  if not content then
+    return false, "Empty response from " .. url
+  end
+
+  local contentSize = string.len(content)
+  local parentDir = filepath:match("^(.+)/[^/]+$") or "."
+
+  if fs.getFreeSpace then
+    local freeSpace = fs.getFreeSpace(parentDir)
+    if freeSpace and contentSize > freeSpace then
+      return false, "Insufficient storage: need " .. contentSize .. " bytes, have " .. freeSpace .. " bytes free"
+    end
+  end
+
   local file = fs.open(filepath, "w")
   if not file then
-    return false, "Failed to open file for writing: " .. filepath
+    local errorMsg = "Failed to open file for writing: " .. filepath
+    if fs.getFreeSpace then
+      local freeSpace = fs.getFreeSpace(parentDir)
+      if freeSpace and contentSize > freeSpace then
+        errorMsg = errorMsg .. " (out of storage: need " .. contentSize .. " bytes, have " .. freeSpace .. " bytes free)"
+      elseif freeSpace then
+        errorMsg = errorMsg .. " (free space: " .. freeSpace .. " bytes, file size: " .. contentSize .. " bytes)"
+      end
+    end
+    return false, errorMsg
   end
 
   file.write(content)
@@ -237,14 +260,32 @@ local function install(targetDir)
     "tests/integration_test.lua"
   }
 
+  local failedFiles = {}
   for _, file in ipairs(files) do
     local url = GITHUB_RAW_BASE .. "/" .. commitHash .. "/" .. file
     local filepath = targetDir .. file
     local ok, err = downloadFile(url, filepath)
     if not ok then
       print("Error: " .. err)
-      return
+      table.insert(failedFiles, {file = file, error = err})
     end
+  end
+
+  if #failedFiles > 0 then
+    print()
+    print("Warning: " .. #failedFiles .. " file(s) failed to download:")
+    for _, failure in ipairs(failedFiles) do
+      print("  - " .. failure.file .. ": " .. failure.error)
+    end
+    print()
+    if fs.getFreeSpace then
+      local freeSpace = fs.getFreeSpace(targetDir)
+      if freeSpace then
+        print("Available storage: " .. freeSpace .. " bytes")
+      end
+    end
+    print("Installation completed with errors. Some files may be missing.")
+    return
   end
 
   local allowListPath = targetDir .. "allow.list"
