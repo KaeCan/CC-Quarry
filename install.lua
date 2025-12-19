@@ -233,6 +233,7 @@ local function install(targetDir)
     "tests/test_fuel.lua",
     "tests/test_inventory.lua",
     "tests/test_tracker.lua",
+    "tests/test_mining.lua",
     "tests/integration_test.lua"
   }
 
