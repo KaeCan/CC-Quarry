@@ -35,10 +35,25 @@ function M.createTurtle()
     end
 
     -- Movement (Always succeed for unit tests unless configured otherwise)
-    function mock.forward() return true end
+    function mock.forward()
+        if fuelLevel == 0 then
+            return false
+        end
+        return true
+    end
     function mock.back() return true end
-    function mock.up() return true end
-    function mock.down() return true end
+    function mock.up()
+        if fuelLevel == 0 then
+            return false
+        end
+        return true
+    end
+    function mock.down()
+        if fuelLevel == 0 then
+            return false
+        end
+        return true
+    end
     function mock.turnLeft() return true end
     function mock.turnRight() return true end
 
@@ -59,6 +74,11 @@ function M.createTurtle()
     function mock.dig() return true end
     function mock.digUp() return true end
     function mock.digDown() return true end
+
+    -- Detection
+    function mock.detect() return false end
+    function mock.detectUp() return false end
+    function mock.detectDown() return false end
 
     -- Inspection
     function mock.inspect() return false, "No block to inspect" end

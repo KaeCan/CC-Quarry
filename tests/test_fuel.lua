@@ -294,8 +294,11 @@ describe("Fuel Exhaustion Protection", function()
     it("turtle_tracker detects fuel exhaustion and throws error", function()
         local tracker = require("modules.turtle_tracker")
 
-        turtle = mocks.createTurtle()
-        turtle._setFuelLevel(0)
+        local mockTurtle = mocks.createTurtle()
+        mockTurtle._setFuelLevel(0)
+        for k, v in pairs(mockTurtle) do
+            turtle[k] = v
+        end
 
         tracker.state = {posx=1, posy=1, depth=0, facing=tracker.direction.front}
 
@@ -308,8 +311,11 @@ describe("Fuel Exhaustion Protection", function()
     it("turtle_tracker limits retry attempts to prevent infinite loops", function()
         local tracker = require("modules.turtle_tracker")
 
-        turtle = mocks.createTurtle()
-        turtle._setFuelLevel(1)
+        local mockTurtle = mocks.createTurtle()
+        mockTurtle._setFuelLevel(1)
+        for k, v in pairs(mockTurtle) do
+            turtle[k] = v
+        end
 
         local forwardCallCount = 0
         local originalForward = turtle.forward
@@ -332,9 +338,13 @@ describe("Fuel Exhaustion Protection", function()
     it("clearLayer returns home when fuel runs low during clearing", function()
         local mining = require("modules.mining")
 
-        turtle = mocks.createTurtle()
-        turtle._setFuelLevel(500)
+        local mockTurtle = mocks.createTurtle()
+        mockTurtle._setFuelLevel(500)
+        for k, v in pairs(mockTurtle) do
+            turtle[k] = v
+        end
 
+        inventory.setup(nil)
         fuel.setup(4)
         mining.setup({
             width = 5,
@@ -378,9 +388,13 @@ describe("Fuel Exhaustion Protection", function()
     it("clearLayer handles movement errors and returns home", function()
         local mining = require("modules.mining")
 
-        turtle = mocks.createTurtle()
-        turtle._setFuelLevel(100)
+        local mockTurtle = mocks.createTurtle()
+        mockTurtle._setFuelLevel(100)
+        for k, v in pairs(mockTurtle) do
+            turtle[k] = v
+        end
 
+        inventory.setup(nil)
         fuel.setup(4)
         mining.setup({
             width = 3,
@@ -422,23 +436,13 @@ describe("Fuel Exhaustion Protection", function()
     end)
 
     it("quarry checks fuel before starting layer clearing", function()
-        local mining = require("modules.mining")
-
-        turtle = mocks.createTurtle()
-        turtle._setFuelLevel(100)
+        local mockTurtle = mocks.createTurtle()
+        mockTurtle._setFuelLevel(100)
+        for k, v in pairs(mockTurtle) do
+            turtle[k] = v
+        end
 
         fuel.setup(4)
-        mining.setup({
-            width = 16,
-            length = 3,
-            maxDepth = 4,
-            offsetH = 0,
-            skipHoles = 0,
-            rememberBlocks = false,
-            minedBlocks = {},
-            holeCount = 0
-        })
-
         local layerFuelNeeded = fuel.calculateFuelNeededForLayerClearing(16, 3)
         local currentFuel = turtle.getFuelLevel()
 

@@ -87,14 +87,47 @@ function M.expect(actual)
             end
         end,
         toEqual = function(expected)
-            -- Deep equality check could go here, simple check for now
             if type(actual) ~= type(expected) then
                  error(string.format("Expected type %s to equal type %s", type(actual), type(expected)), 2)
             end
             if actual ~= expected and type(actual) ~= "table" then
                  error(string.format("Expected %s to equal %s", tostring(actual), tostring(expected)), 2)
             end
-            -- Table check omitted for brevity in this simple version unless needed
+        end,
+        toBeGreaterThan = function(expected)
+            if type(actual) ~= "number" or type(expected) ~= "number" then
+                error(string.format("toBeGreaterThan requires numbers, got %s and %s", type(actual), type(expected)), 2)
+            end
+            if actual <= expected then
+                error(string.format("Expected %s to be greater than %s", tostring(actual), tostring(expected)), 2)
+            end
+        end,
+        toBeLessThan = function(expected)
+            if type(actual) ~= "number" or type(expected) ~= "number" then
+                error(string.format("toBeLessThan requires numbers, got %s and %s", type(actual), type(expected)), 2)
+            end
+            if actual >= expected then
+                error(string.format("Expected %s to be less than %s", tostring(actual), tostring(expected)), 2)
+            end
+        end,
+        toBeLessThanOrEqual = function(expected)
+            if type(actual) ~= "number" or type(expected) ~= "number" then
+                error(string.format("toBeLessThanOrEqual requires numbers, got %s and %s", type(actual), type(expected)), 2)
+            end
+            if actual > expected then
+                error(string.format("Expected %s to be less than or equal to %s", tostring(actual), tostring(expected)), 2)
+            end
+        end,
+        toContain = function(expected)
+            if type(actual) ~= "string" then
+                error(string.format("toContain requires string, got %s", type(actual)), 2)
+            end
+            if type(expected) ~= "string" then
+                error(string.format("toContain expected value must be string, got %s", type(expected)), 2)
+            end
+            if not string.find(actual, expected, 1, true) then
+                error(string.format("Expected '%s' to contain '%s'", actual, expected), 2)
+            end
         end
     }
 end
