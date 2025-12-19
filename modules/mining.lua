@@ -31,9 +31,13 @@ function M.setup(conf)
   for k,v in pairs(conf) do
     config[k] = v
   end
+  logger.log("Mining module setup: width=" .. tostring(config.width) .. " length=" .. tostring(config.length) ..
+             " maxDepth=" .. tostring(config.maxDepth) .. " skipHoles=" .. tostring(config.skipHoles) ..
+             " holeCount=" .. tostring(config.holeCount))
 end
 
 function M.setHoleCount(count)
+  logger.log("Setting hole count to: " .. tostring(count))
   config.holeCount = count
 end
 
@@ -49,6 +53,10 @@ function M.backHome(continueAfterwards, targetX, targetY)
   local lastFacing = state.facing
   local lastX = state.posx
   local lastY = state.posy
+
+  logger.log("backHome called: continueAfterwards=" .. tostring(continueAfterwards) ..
+             " from pos (" .. tostring(lastX) .. "," .. tostring(lastY) .. ") depth=" .. tostring(lastDepth) ..
+             " target (" .. tostring(targetX or "nil") .. "," .. tostring(targetY or "nil") .. ")")
 
   while state.depth > 0 do
     tracker.up()
@@ -103,6 +111,8 @@ function M.backHome(continueAfterwards, targetX, targetY)
     local nextX = targetX or lastX
     local nextY = targetY or lastY
     local fuelNeeded = fuel.calculateFuelNeeded(nextX, nextY)
+    logger.log("backHome continue: next pos (" .. tostring(nextX) .. "," .. tostring(nextY) ..
+               ") fuelNeeded=" .. tostring(fuelNeeded) .. " current=" .. tostring(turtle.getFuelLevel()))
 
     while turtle.getFuelLevel() < fuelNeeded or (not isEmpty) do
       if turtle.getFuelLevel() < fuelNeeded then
@@ -153,6 +163,7 @@ end
 
 local function digSides()
   local inspectBlocks = filter.hasFilters()
+  logger.log("digSides: inspectBlocks=" .. tostring(inspectBlocks))
 
   for i=1,4 do
     local digIt = turtle.detect()
@@ -161,19 +172,26 @@ local function digSides()
         local success, data = turtle.inspect()
         if success then
           digIt = filter.isDesired(data, data)
+          logger.log("digSides side " .. tostring(i) .. ": block=" .. tostring(data.name) ..
+                     " isDesired=" .. tostring(digIt))
           if digIt and config.rememberBlocks then
             config.minedBlocks[data.name] = true
           end
         else
           digIt = false  -- If inspection fails, don't dig
+          logger.log("digSides side " .. tostring(i) .. ": inspection failed")
         end
+      else
+        logger.log("digSides side " .. tostring(i) .. ": no filters, mining all blocks")
       end
       -- If inspectBlocks is false, digIt remains true (dig everything)
     end
     if digIt then
       tracker.select(1)
       turtle.dig()
+      logger.log("digSides side " .. tostring(i) .. ": mined block")
       if inventory.isInventoryFull() then
+        logger.log("digSides: inventory full, returning home")
         M.backHome(true)
       end
     end
@@ -183,9 +201,11 @@ end
 
 local function drill()
   if turtle.detectDown() then
+    logger.log("drill: block detected below, digging")
     tracker.select(1)
     turtle.digDown()
     if inventory.isInventoryFull() then
+      logger.log("drill: inventory full, returning home")
       M.backHome(true)
     end
   end
@@ -193,38 +213,50 @@ end
 
 function M.digColumn()
   local state = tracker.state
+  logger.log("digColumn: starting at pos (" .. tostring(state.posx) .. "," .. tostring(state.posy) ..
+             ") depth=" .. tostring(state.depth) .. " holeCount=" .. tostring(config.holeCount))
   drill()
   while true do
-    if not fuel.checkFuel(state.posx, state.posy, state.depth, 1, false) then
+    local fuelCheck = fuel.checkFuel(state.posx, state.posy, state.depth, 1, false)
+    logger.log("digColumn: fuel check at depth " .. tostring(state.depth) .. " result=" .. tostring(fuelCheck))
+    if not fuelCheck then
+      logger.log("digColumn: fuel check failed, returning home")
       M.backHome(true)
     end
 
     if not turtle.down() then
       drill()
       if not turtle.down() then
+        logger.log("digColumn: cannot move down further, reached bottom at depth " .. tostring(state.depth))
         break
       end
     end
     state.depth = state.depth + 1
+    logger.log("digColumn: moved down to depth " .. tostring(state.depth))
     if inventory.isInventoryFull() then
+      logger.log("digColumn: inventory full at depth " .. tostring(state.depth) .. ", returning home")
       M.backHome(true)
     end
     digSides()
 
     if (config.maxDepth > 0) and (state.depth >= config.maxDepth) then
+      logger.log("digColumn: reached maxDepth " .. tostring(config.maxDepth) .. " at depth " .. tostring(state.depth))
       break;
     end
 
     drill()
   end
 
+  logger.log("digColumn: returning to surface from depth " .. tostring(state.depth))
   while state.depth > 0 do
     tracker.up()
     state.depth = state.depth - 1
   end
 
   config.holeCount = config.holeCount + 1
+  logger.log("digColumn: incrementing holeCount to " .. tostring(config.holeCount))
   persistence.saveHoleCount(config.holeCount)
+  logger.log("digColumn: saved holeCount " .. tostring(config.holeCount) .. " to file")
 
   logger.status("Hole "..tostring(config.holeCount).." at x:"..tostring(state.posx).." y:"..tostring(state.posy).." is done.", colors.lightBlue)
 
@@ -252,14 +284,17 @@ function M.calculateSkipOffset()
   local x = 1
   local y = 1
   local skips = config.skipHoles
+  logger.log("calculateSkipOffset: skipHoles=" .. tostring(skips))
 
   while running do
     skips = skips - 1
+    logger.log("calculateSkipOffset: skips remaining=" .. tostring(skips) .. " at pos (" .. tostring(x) .. "," .. tostring(y) .. ")")
 
     -- check for finish condition
     if (x == config.width) then
       if ((facing == tracker.direction.front) and ((y + 5) > config.length))
           or ((facing == tracker.direction.back) and ((y-5) < 1)) then
+        logger.log("calculateSkipOffset: reached end condition")
         running = false
       end
     end
@@ -293,10 +328,13 @@ function M.calculateSkipOffset()
     end
 
     if (skips <= 0) then
+      logger.log("calculateSkipOffset: finished skipping, final pos (" .. tostring(x) .. "," .. tostring(y) .. ")")
       break
     end
   end
 
+  logger.log("calculateSkipOffset: returning pos (" .. tostring(x) .. "," .. tostring(y) ..
+             ") facing=" .. tostring(facing) .. " running=" .. tostring(running))
   return x,y,facing,running
 end
 

@@ -13,6 +13,7 @@ local lists = {
 function M.setup(allowList, ignoreList)
   lists.allow = allowList
   lists.ignore = ignoreList
+  -- Note: logger may not be available here, so we'll log from quarry.lua instead
 end
 
 function M.getTags(data)

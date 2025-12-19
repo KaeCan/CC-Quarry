@@ -15,28 +15,46 @@ local config = {
 
 function M.setup(maxDepth)
   config.maxDepth = maxDepth
+  logger.log("Fuel module setup: maxDepth=" .. tostring(maxDepth))
 end
 
 function M.checkFuel(posx, posy, depth, factor, allowAnySource)
-  if turtle.getFuelLevel() <= ((depth + posx + posy + 100) * factor) then
+  local currentFuel = turtle.getFuelLevel()
+  local requiredFuel = (depth + posx + posy + 100) * factor
+  logger.log("checkFuel: pos (" .. tostring(posx) .. "," .. tostring(posy) .. ") depth=" .. tostring(depth) ..
+             " factor=" .. tostring(factor) .. " current=" .. tostring(currentFuel) ..
+             " required=" .. tostring(requiredFuel) .. " allowAnySource=" .. tostring(allowAnySource))
+
+  if currentFuel <= requiredFuel then
+    logger.log("checkFuel: fuel low, attempting refuel")
     logger.status("Need fuel, trying to fill up...", colors.lightBlue, 0.5)
     local refuelFn = allowAnySource and turtle.refuel or inventory.useFuelItem
     local success = false
+    local refueledSlots = 0
     for i=1,16 do
       if turtle.getItemCount(i) > 0 then
         tracker.select(i)
-        success = refuelFn(i) or success
+        local slotSuccess = refuelFn(i)
+        if slotSuccess then
+          refueledSlots = refueledSlots + 1
+          logger.log("checkFuel: refueled from slot " .. tostring(i))
+        end
+        success = slotSuccess or success
       end
     end
+    local newFuel = turtle.getFuelLevel()
+    logger.log("checkFuel: refuel attempt complete, success=" .. tostring(success) ..
+               " slots used=" .. tostring(refueledSlots) .. " new fuel=" .. tostring(newFuel))
     local color = success and colors.lime or colors.orange
     local text = "Refuel success: "..tostring(success)
     if success then
-      text = text.." ("..tostring(turtle.getFuelLevel())..")"
+      text = text.." ("..tostring(newFuel)..")"
     end
     logger.status(text, color, 0.5)
-    testHooks.onRefuelAttempt(success, turtle.getFuelLevel())
+    testHooks.onRefuelAttempt(success, newFuel)
     return success
   end
+  logger.log("checkFuel: fuel sufficient")
   return true
 end
 
@@ -45,7 +63,10 @@ function M.calculateFuelNeeded(targetX, targetY)
   local holeDepth = config.maxDepth > 0 and config.maxDepth or 50
   local fuelForHole = holeDepth * 2 + 20
   local fuelToReturn = targetX + targetY + 100
-  return (fuelToTarget + fuelForHole + fuelToReturn) * 2
+  local totalFuel = (fuelToTarget + fuelForHole + fuelToReturn) * 2
+  logger.log("calculateFuelNeeded: target (" .. tostring(targetX) .. "," .. tostring(targetY) ..
+             ") holeDepth=" .. tostring(holeDepth) .. " total=" .. tostring(totalFuel))
+  return totalFuel
 end
 
 return M

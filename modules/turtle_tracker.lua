@@ -21,7 +21,9 @@ function M.select(slot)
 end
 
 function M.forward()
+  local blocked = false
   while not turtle.forward() do
+    blocked = true
     M.select(1)
     turtle.dig()
     turtle.attack()
@@ -35,6 +37,7 @@ function M.forward()
   else
     M.state.posx = M.state.posx - 1
   end
+  -- Debug logging will be done via logger.logPosition() calls from mining module
 end
 
 function M.up()

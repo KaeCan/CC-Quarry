@@ -22,6 +22,15 @@ local dropSpots = {
 
 function M.setup(fuelSources)
   M.fuelSources = fuelSources
+  if fuelSources then
+    local fuelList = {}
+    for name, _ in pairs(fuelSources) do
+      table.insert(fuelList, name)
+    end
+    logger.log("Inventory module setup: fuelSources=" .. table.concat(fuelList, ", "))
+  else
+    logger.log("Inventory module setup: fuelSources=nil (any fuel allowed)")
+  end
 end
 
 function M.itemName(slot)
@@ -35,21 +44,33 @@ function M.itemDetails(slot)
 end
 
 function M.useFuelItem(slot)
-  return M.fuelSources
-         and M.fuelSources[M.itemName(slot)]
-         and tracker.select(slot)
-         and turtle.refuel()
+  local itemName = M.itemName(slot)
+  local isFuelSource = M.fuelSources and M.fuelSources[itemName]
+  logger.log("useFuelItem slot " .. tostring(slot) .. ": item=" .. tostring(itemName) ..
+             " isFuelSource=" .. tostring(isFuelSource))
+  if isFuelSource then
+    tracker.select(slot)
+    local success = turtle.refuel()
+    logger.log("useFuelItem slot " .. tostring(slot) .. ": refuel result=" .. tostring(success))
+    return success
+  end
+  return false
 end
 
 function M.dropWaste(slot)
   local details = turtle.getItemDetail(slot)
   if not details then return false end
   local item = details.name
-  return not filter.isDesired(item)
-         and tracker.select(slot)
-         and (turtle.dropDown()
-              or turtle.drop()
-              or turtle.dropUp())
+  local isDesired = filter.isDesired(item)
+  logger.log("dropWaste slot " .. tostring(slot) .. ": item=" .. tostring(item) ..
+             " isDesired=" .. tostring(isDesired))
+  if not isDesired then
+    tracker.select(slot)
+    local dropped = turtle.dropDown() or turtle.drop() or turtle.dropUp()
+    logger.log("dropWaste slot " .. tostring(slot) .. ": drop result=" .. tostring(dropped))
+    return dropped
+  end
+  return false
 end
 
 -- Drop waste items during compression (only down or forward, not up)
@@ -81,23 +102,35 @@ end
 
 function M.dropItemsInChest()
   local dropSpotName = M.getDropSpotName()
+  logger.log("dropItemsInChest: looking for drop spot")
   while not dropSpotName do
+    logger.log("dropItemsInChest: no drop spot found, waiting")
     logger.status("No inventory to drop items into...", colors.orange)
     sleep(3)
     dropSpotName = M.getDropSpotName()
   end
 
+  logger.log("dropItemsInChest: found drop spot: " .. tostring(dropSpotName))
   logger.status("Dropping into \""..dropSpotName.."\"", colors.lightBlue, 0.5)
+  local dropCycles = 0
   while true do
+    dropCycles = dropCycles + 1
+    local itemsDropped = 0
     for i=1,16 do
       if turtle.getItemCount(i) > 0 then
         if not M.dropWaste(i) then
           tracker.select(i)
-          turtle.dropUp()
+          if turtle.dropUp() then
+            itemsDropped = itemsDropped + 1
+          end
+        else
+          itemsDropped = itemsDropped + 1
         end
       end
     end
+    logger.log("dropItemsInChest: cycle " .. tostring(dropCycles) .. " dropped " .. tostring(itemsDropped) .. " items")
     if M.isInventoryEmpty() then
+      logger.log("dropItemsInChest: inventory empty after " .. tostring(dropCycles) .. " cycles")
       break
     else
       sleep(3)
@@ -151,22 +184,41 @@ local function defragInventory()
 end
 
 function M.compressInventory()
+  logger.log("compressInventory: starting")
+  local fuelUsed = 0
+  local wasteDropped = 0
   for i=1,16 do
     if turtle.getItemCount(i) > 0 then
-      if not M.useFuelItem(i) then
-        M.dropWasteDuringCompression(i)
+      if M.useFuelItem(i) then
+        fuelUsed = fuelUsed + 1
+      else
+        local details = turtle.getItemDetail(i)
+        if details and not filter.isDesired(details.name) then
+          if M.dropWasteDuringCompression(i) then
+            wasteDropped = wasteDropped + 1
+          end
+        end
       end
     end
   end
+  logger.log("compressInventory: fuel used from " .. tostring(fuelUsed) .. " slots, waste dropped from " .. tostring(wasteDropped) .. " slots")
   defragInventory()
+  logger.log("compressInventory: defragmentation complete")
 end
 
 function M.isInventoryFull()
-  if turtle.getItemCount(16) == 0 then
+  local slot16Count = turtle.getItemCount(16)
+  logger.log("isInventoryFull: slot 16 count=" .. tostring(slot16Count))
+  if slot16Count == 0 then
+    logger.log("isInventoryFull: slot 16 empty, inventory not full")
     return false
   end
+  logger.log("isInventoryFull: slot 16 has items, compressing")
   M.compressInventory()
-  return turtle.getItemCount(14) > 0
+  local slot14Count = turtle.getItemCount(14)
+  local isFull = slot14Count > 0
+  logger.log("isInventoryFull: after compression, slot 14 count=" .. tostring(slot14Count) .. " isFull=" .. tostring(isFull))
+  return isFull
 end
 
 return M
