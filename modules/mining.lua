@@ -152,18 +152,23 @@ function M.backHome(continueAfterwards, targetX, targetY)
 end
 
 local function digSides()
-  local inspectBlocks = (filter.lists and (filter.lists.ignore or filter.lists.allow)) and true or false
+  local inspectBlocks = filter.hasFilters()
 
   for i=1,4 do
     local digIt = turtle.detect()
-    if digIt and inspectBlocks then
-      local success, data = turtle.inspect()
-      if success then
-        digIt = filter.isDesired(data, data)
-        if digIt and config.rememberBlocks then
-          config.minedBlocks[data.name] = true
+    if digIt then
+      if inspectBlocks then
+        local success, data = turtle.inspect()
+        if success then
+          digIt = filter.isDesired(data, data)
+          if digIt and config.rememberBlocks then
+            config.minedBlocks[data.name] = true
+          end
+        else
+          digIt = false  -- If inspection fails, don't dig
         end
       end
+      -- If inspectBlocks is false, digIt remains true (dig everything)
     end
     if digIt then
       tracker.select(1)

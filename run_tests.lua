@@ -19,6 +19,7 @@ require("tests.test_item_filter")
 require("tests.test_fuel")
 require("tests.test_inventory")
 require("tests.test_tracker")
+require("tests.test_mining")
 
 framework.printStats()
 

@@ -129,6 +129,11 @@ function M.alwaysTrue()
   return true
 end
 
+-- Check if filtering is active (either allow or ignore list exists)
+function M.hasFilters()
+  return (lists.allow ~= nil) or (lists.ignore ~= nil)
+end
+
 -- checks if a given item name is of interest for the quarry
 -- allow list overrules ignore list when both are present
 -- itemNameOrData: can be a string (item name) or a table (block data with .name field)
