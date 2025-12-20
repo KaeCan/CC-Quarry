@@ -281,6 +281,46 @@ function M.stepsForward(count)
   end
 end
 
+function M.nextHole(x, y, facing, width, length)
+  -- Try moving in current row
+  if facing == tracker.direction.front then
+    if y + 5 <= length then
+      return x, y + 5, facing
+    end
+  elseif facing == tracker.direction.back then
+    if y - 5 >= 1 then
+      return x, y - 5, facing
+    end
+  end
+
+  -- Move to next row(s)
+  local nextX = x + 1
+  while nextX <= width do
+    local nextFacing = (nextX % 2 == 1) and tracker.direction.front or tracker.direction.back
+
+    local shift = ((nextX - 1) * 3 + 1) % 5
+    if shift == 0 then shift = 5 end
+
+    local nextY
+    if nextFacing == tracker.direction.front then
+      nextY = shift
+    else
+      -- Back: find largest valid Y
+      local k = math.floor((length - shift) / 5)
+      nextY = shift + k * 5
+    end
+
+    if nextY >= 1 and nextY <= length then
+      return nextX, nextY, nextFacing
+    end
+
+    -- If invalid (e.g. shift > length), skip this row
+    nextX = nextX + 1
+  end
+
+  return nil -- Finished
+end
+
 function M.calculateSkipOffset()
   local running = true
   local facing = tracker.direction.front
@@ -289,51 +329,15 @@ function M.calculateSkipOffset()
   local skips = config.skipHoles
   logger.log("calculateSkipOffset: skipHoles=" .. tostring(skips))
 
-  while running do
+  while skips > 0 do
     skips = skips - 1
-    logger.log("calculateSkipOffset: skips remaining=" .. tostring(skips) .. " at pos (" .. tostring(x) .. "," .. tostring(y) .. ")")
-
-    -- check for finish condition
-    if (x == config.width) then
-      if ((facing == tracker.direction.front) and ((y + 5) > config.length))
-          or ((facing == tracker.direction.back) and ((y-5) < 1)) then
-        logger.log("calculateSkipOffset: reached end condition")
-        running = false
-      end
-    end
-
-    if running then
-      if facing == tracker.direction.front then
-        if y+5 <= config.length then
-          y = y+5
-        elseif y+3 <= config.length then
-          y = y+3
-          x = x+1
-          facing = tracker.direction.back
-        else
-          x = x+1
-          facing = tracker.direction.back
-          y = config.length
-        end
-      elseif facing == tracker.direction.back then
-        if y-5 >= 1 then
-          y = y-5
-        elseif y-2 >= 1 then
-          y = y-2
-          x = x+1
-          facing = tracker.direction.front
-        else
-          x = x+1
-          facing = tracker.direction.front
-          y = 1
-        end
-      end
-    end
-
-    if (skips <= 0) then
-      logger.log("calculateSkipOffset: finished skipping, final pos (" .. tostring(x) .. "," .. tostring(y) .. ")")
+    local nx, ny, nf = M.nextHole(x, y, facing, config.width, config.length)
+    if not nx then
+      logger.log("calculateSkipOffset: reached end of quarry while skipping")
+      running = false
       break
     end
+    x, y, facing = nx, ny, nf
   end
 
   logger.log("calculateSkipOffset: returning pos (" .. tostring(x) .. "," .. tostring(y) ..

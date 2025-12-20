@@ -346,13 +346,13 @@ describe("Mining Module - Filter Integration", function()
 end)
 describe("Mining Module - Boundary Handling", function()
     it("calculateSkipOffset: Y stays within bounds when transitioning rows (front to back)", function()
-        -- Start at (1,1) facing front, can't move +5 or +3, so should go to (2,3) facing back
+        -- Start at (1,1) facing front, can't move +5, so should go to next row
         mining.setup({
             width = 16,
             length = 3,
             offsetH = 0,
             maxDepth = 4,
-            skipHoles = 1,  -- Skip 1 hole: (1,1) -> (2,3)
+            skipHoles = 1,  -- Skip 1 hole: (1,1) -> R2 (Back)
             rememberBlocks = false,
             minedBlocks = {},
             holeCount = 0
@@ -361,33 +361,40 @@ describe("Mining Module - Boundary Handling", function()
         local x, y, facing, running = mining.calculateSkipOffset()
 
         -- Verify Y is within bounds and correct
+        -- Row 2 shift: ((2-1)*3 + 1) % 5 = 4.
+        -- Length 3.
+        -- k = floor((3-4)/5) = -1. Wait...
+        -- The logic was: nextY = shift + k*5.
+        -- If shift (4) > length (3), then k=-1. nextY = 4-5 = -1.
+        -- M.nextHole will skip this row if nextY is invalid.
+        -- So it should go to Row 3 (Front).
+        -- Row 3 shift: ((3-1)*3 + 1) % 5 = 2.
+        -- nextY = 2. Valid.
+        -- So expected: x=3, y=2, facing=Front.
+
         expect(y >= 1).toBe(true)
         expect(y <= 3).toBe(true)
-        expect(x).toBe(2)
-        expect(y).toBe(3)  -- Should be at back end (config.length)
-        expect(facing).toBe(tracker.direction.back)
+        expect(x).toBe(3)
+        expect(y).toBe(2)
+        expect(facing).toBe(tracker.direction.front)
     end)
 
     it("calculateSkipOffset: Y stays within bounds when transitioning rows (back to front)", function()
-        mining.setup({
-            width = 16,
-            length = 3,
-            offsetH = 0,
-            maxDepth = 4,
-            skipHoles = 0,
-            rememberBlocks = false,
-            minedBlocks = {},
-            holeCount = 0
-        })
+        -- We need to setup a state where we are in a Back row and move to Front row.
+        -- Let's aim for Row 2 -> Row 3.
+        -- R2 (Back). Shift 4. Length 16.
+        -- Holes: 14, 9, 4.
+        -- Let's skip to the end of R2.
+        -- Holes so far: R1 (1, 6, 11, 16) -> 4 holes.
+        -- R2 (14, 9, 4) -> 3 holes. Total 7.
+        -- So skip 7 holes. Should be at start of R3 (3, 2).
 
-        -- Simulate being at (2,1) facing back, can't move backward
-        -- Need to manually advance to this state
         mining.setup({
             width = 16,
-            length = 3,
+            length = 16,
             offsetH = 0,
             maxDepth = 4,
-            skipHoles = 2,  -- Skip 2 holes: (1,1) -> (2,3) -> (3,1)
+            skipHoles = 7,  -- Skip R1 and R2.
             rememberBlocks = false,
             minedBlocks = {},
             holeCount = 0
@@ -395,10 +402,11 @@ describe("Mining Module - Boundary Handling", function()
 
         local x, y, facing, running = mining.calculateSkipOffset()
 
-        -- Should be at (3,1) facing front
-        expect(y >= 1).toBe(true)
-        expect(y <= 3).toBe(true)
-        expect(y).toBe(1)  -- Should start at front end
+        -- Should be at start of R3.
+        -- R3 shift: ((3-1)*3 + 1)%5 = 7%5 = 2.
+        -- Start Y = 2.
+        expect(x).toBe(3)
+        expect(y).toBe(2)
         expect(facing).toBe(tracker.direction.front)
     end)
 
@@ -504,10 +512,10 @@ describe("Mining Module - Boundary Handling", function()
     it("calculateSkipOffset: correctly transitions from front to back at row boundary", function()
         mining.setup({
             width = 16,
-            length = 3,
+            length = 16,
             offsetH = 0,
             maxDepth = 4,
-            skipHoles = 1,  -- Start at (1,1), skip 1 -> should be at (2,3) facing back
+            skipHoles = 4,  -- Skip R1 (4 holes: 1, 6, 11, 16). Should be start of R2.
             rememberBlocks = false,
             minedBlocks = {},
             holeCount = 0
@@ -515,19 +523,21 @@ describe("Mining Module - Boundary Handling", function()
 
         local x, y, facing, running = mining.calculateSkipOffset()
 
-        -- At (1,1) facing front, can't move +5 or +3, so should go to (2,3) facing back
+        -- Start of R2 (Back). Shift 4.
+        -- Max Y <= 16 matching 4+k*5.
+        -- 4 + 2*5 = 14.
         expect(x).toBe(2)
-        expect(y).toBe(3)  -- Should be at back end (config.length)
+        expect(y).toBe(14)
         expect(facing).toBe(tracker.direction.back)
     end)
 
     it("calculateSkipOffset: correctly transitions from back to front at row boundary", function()
         mining.setup({
             width = 16,
-            length = 3,
+            length = 16,
             offsetH = 0,
             maxDepth = 4,
-            skipHoles = 2,  -- (1,1) -> (2,3) -> (3,1) facing front
+            skipHoles = 7,  -- Skip R1 (4) + R2 (3: 14, 9, 4). Total 7. Start of R3.
             rememberBlocks = false,
             minedBlocks = {},
             holeCount = 0
@@ -535,9 +545,9 @@ describe("Mining Module - Boundary Handling", function()
 
         local x, y, facing, running = mining.calculateSkipOffset()
 
-        -- At (2,3) facing back, can't move -5 or -2, so should go to (3,1) facing front
+        -- Start of R3 (Front). Shift 2.
         expect(x).toBe(3)
-        expect(y).toBe(1)  -- Should be at front end
+        expect(y).toBe(2)
         expect(facing).toBe(tracker.direction.front)
     end)
 
@@ -573,6 +583,59 @@ describe("Mining Module - Boundary Handling", function()
             -- Y should always be valid
             expect(y >= 1).toBe(true)
             expect(y <= 3).toBe(true)
+        end
+    end)
+end)
+
+describe("Mining Module - Pattern Verification", function()
+    it("generates correct sequence for 8x3 grid (Knight's move pattern)", function()
+        local sequence = {}
+        local x, y, facing = 1, 1, tracker.direction.front
+        table.insert(sequence, {x, y})
+
+        while true do
+            local nx, ny, nf = mining.nextHole(x, y, facing, 8, 3)
+            if not nx then break end
+            x, y, facing = nx, ny, nf
+            table.insert(sequence, {x, y})
+        end
+
+        local expected = {
+            {1, 1},
+            {3, 2},
+            {5, 3},
+            {6, 1},
+            {8, 2}
+        }
+
+        expect(#sequence).toBe(#expected)
+        for i, pos in ipairs(sequence) do
+            expect(pos[1]).toBe(expected[i][1])
+            expect(pos[2]).toBe(expected[i][2])
+        end
+    end)
+
+    it("generates correct sequence for 3x3 grid", function()
+        local sequence = {}
+        local x, y, facing = 1, 1, tracker.direction.front
+        table.insert(sequence, {x, y})
+
+        while true do
+            local nx, ny, nf = mining.nextHole(x, y, facing, 3, 3)
+            if not nx then break end
+            x, y, facing = nx, ny, nf
+            table.insert(sequence, {x, y})
+        end
+
+        local expected = {
+            {1, 1},
+            {3, 2}
+        }
+
+        expect(#sequence).toBe(#expected)
+        for i, pos in ipairs(sequence) do
+            expect(pos[1]).toBe(expected[i][1])
+            expect(pos[2]).toBe(expected[i][2])
         end
     end)
 end)

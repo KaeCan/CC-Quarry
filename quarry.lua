@@ -179,14 +179,14 @@ local function main()
   end
   if fuelCheckCount > 0 then
     logger.log("Main: initial fuel check passed after " .. tostring(fuelCheckCount) .. " attempts")
-  end
+        end
 
   if config.offsetH > 0 then
     logger.log("Main: moving down offsetH=" .. tostring(config.offsetH))
     for i=1,config.offsetH do
       tracker.down()
-    end
   end
+end
 
   if not resumed then
     logger.log("Main: calculating fuel needed for layer clearing")
@@ -224,8 +224,8 @@ local function main()
     while (not fuel.checkFuel(state.posx, state.posy, state.depth, 2, true)) do
       fuelCheckCount = fuelCheckCount + 1
       logger.log("Main: fuel check on resume failed, attempt " .. tostring(fuelCheckCount) .. ", waiting")
-      sleep(3)
-    end
+    sleep(3)
+  end
     if fuelCheckCount > 0 then
       logger.log("Main: fuel check on resume passed after " .. tostring(fuelCheckCount) .. " attempts")
     end
@@ -267,42 +267,13 @@ local function main()
 
     if running then
       logger.log("Main: calculating next hole position")
-      if state.facing == direction.front then
-        if state.posy+5 <= config.length then
-          nextY = state.posy + 5
-          logger.log("Main: next hole forward 5 spaces to y=" .. tostring(nextY))
-        elseif state.posy+3 <= config.length then
-          nextX = state.posx + 1
-          nextY = state.posy + 3
-          nextFacing = direction.back
-          logger.log("Main: next hole forward 3 spaces then next row to (" .. tostring(nextX) .. "," .. tostring(nextY) .. ")")
-        else
-          nextX = state.posx + 1
-          nextY = config.length
-          nextFacing = direction.back
-          logger.log("Main: next hole next row backward to (" .. tostring(nextX) .. "," .. tostring(nextY) .. ")")
-        end
-      elseif state.facing == direction.back then
-        if state.posy-5 >= 1 then
-          nextY = state.posy - 5
-          logger.log("Main: next hole backward 5 spaces to y=" .. tostring(nextY))
-        elseif state.posy-2 >= 1 then
-          nextX = state.posx + 1
-          nextY = state.posy - 2
-          nextFacing = direction.front
-          logger.log("Main: next hole backward 2 spaces then next row to (" .. tostring(nextX) .. "," .. tostring(nextY) .. ")")
-        else
-          nextX = state.posx + 1
-          nextY = 1
-          nextFacing = direction.front
-          logger.log("Main: next hole next row forward to (" .. tostring(nextX) .. "," .. tostring(nextY) .. ")")
-        end
-      end
-      logger.log("Main: next hole target (" .. tostring(nextX) .. "," .. tostring(nextY) ..
-                 ") facing=" .. tostring(nextFacing))
-
-      if nextX > config.width then
-        logger.log("Main: next hole would exceed width boundary (" .. tostring(nextX) .. " > " .. tostring(config.width) .. "), quarry complete")
+      local nx, ny, nf = mining.nextHole(state.posx, state.posy, state.facing, config.width, config.length)
+      if nx then
+        nextX, nextY, nextFacing = nx, ny, nf
+        logger.log("Main: next hole target (" .. tostring(nextX) .. "," .. tostring(nextY) ..
+                   ") facing=" .. tostring(nextFacing))
+      else
+        logger.log("Main: no next hole found, quarry complete")
         running = false
       end
     end
